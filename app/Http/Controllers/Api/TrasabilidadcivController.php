@@ -7,28 +7,24 @@ use Illuminate\Http\Request;
 use Validator;
 use App\Http\Controllers\API\BaseController as BaseController;
 
-class TrasabilidadcivController extends BaseController
-{
-    public function index()
-    {
-        $trasabilidad = Trasabilidadciv::all();			
-		return $this->sendResponse($trasabilidad->toArray(), 'Datos de la tabla trasabilidad.');
-					
+class TrasabilidadcivController extends BaseController {
+
+    public function index() {
+        $trasabilidad = Trasabilidadciv::all();
+        return $this->sendResponse($trasabilidad->toArray(), 'Datos de la tabla trasabilidad.');
     }
-	
-  
-    public function store(Request $request)
-    {
+
+    public function store(Request $request) {
         $input = $request->all();
-		
+
         $validator = Validator::make($input, [
-            'nombre' => 'required',
-            'descripcion' => 'required'
+                    'nombre' => 'required',
+                    'descripcion' => 'required'
         ]);
 
 
-        if($validator->fails()){
-            return $this->sendError('Error en la validacion de los datos.', $validator->errors());       
+        if ($validator->fails()) {
+            return $this->sendError('Error en la validacion de los datos.', $validator->errors());
         }
 
         $trasabilidad = Trasabilidadciv::create($input);
@@ -36,8 +32,7 @@ class TrasabilidadcivController extends BaseController
         return $this->sendResponse($trasabilidad->toArray(), 'registro creado.');
     }
 
-    public function show($id)
-    {
+    public function show($id) {
         $trasabilidad = Trasabilidadciv::find($id);
 
         if (is_null($trasabilidad)) {
@@ -48,19 +43,17 @@ class TrasabilidadcivController extends BaseController
         return $this->sendResponse($trasabilidad->toArray(), 'Registro encontrado.');
     }
 
- 
-    public function update(Request $request, Trasabilidadciv $trasabilidad)
-    {
+    public function update(Request $request, Trasabilidadciv $trasabilidad) {
         $input = $request->all();
 
         $validator = Validator::make($input, [
-            'nombre' => 'required',
-            'descripcion' => 'required'
+                    'nombre' => 'required',
+                    'descripcion' => 'required'
         ]);
 
 
-        if($validator->fails()){
-            return $this->sendError('Error en la validacion de los datos.', $validator->errors());       
+        if ($validator->fails()) {
+            return $this->sendError('Error en la validacion de los datos.', $validator->errors());
         }
 
         $trasabilidad->nombre = $input['nombre'];
@@ -70,12 +63,12 @@ class TrasabilidadcivController extends BaseController
         return $this->sendResponse($trasabilidad->toArray(), 'Registro actualizado con exito.');
     }
 
-    public function destroy($id)
-    {
+    public function destroy($id) {
         $trasabilidad = Trasabilidadciv::find($id);
-		
-		$trasabilidad->delete();
+
+        $trasabilidad->delete();
 
         return $this->sendResponse($trasabilidad->toArray(), 'Registro eliminado con exito.');
     }
+
 }

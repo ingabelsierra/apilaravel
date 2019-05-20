@@ -13,6 +13,7 @@ Route::prefix('v1')->group(function(){
  Route::get('trasabilidadciv/{id}', 'Api\TrasabilidadcivController@show');
  Route::put('trasabilidadciv/{id}', 'Api\TrasabilidadcivController@update');
  Route::delete('trasabilidadciv/{id}', 'Api\TrasabilidadcivController@destroy');
+ Route::post('departamentos', 'Api\DepartamentoController@index');
  });
 });
 
