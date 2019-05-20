@@ -1,0 +1,396 @@
+https://www.tutsmake.com/create-rest-api-using-passport-laravel-5-8-authentication/
+
+composer create-project --prefer-dist laravel/laravel apilaravel
+composer require laravel/passport
+
+After successfully install laravel passport, register providers. Open config/app.php . 
+and put the bellow code :
+
+// config/app.php
+'providers' =>[
+ Laravel\Passport\PassportServiceProvider::class,
+ ],
+ 
+  
+ Before you run migration command , go to the app/providers/AppServiceProvider.php 
+ and put the two line of code inside a boot method :
+
+ Use Schema; 
+ public function boot() { 
+ Schema::defaultStringLength(191); 
+ }
+ 
+ php artisan migrate
+ php artisan passport:install
+ 
+Laravel Passport Configuration
+Configuration some file . Next open App/User.php file and put the below code on App/User.php File
+
+<?php
+
+namespace App;
+
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Passport\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens,Notifiable;
+   
+    protected $fillable = [
+        'name', 'email', 'password',
+    ];
+
+    
+    protected $hidden = [
+        'password', 'remember_token',
+    ];
+
+    
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+}
+
+Next Register passport routes in App/Providers/AuthServiceProvider.php, 
+Go to App/Providers/AuthServiceProvider.php
+and put this => Register Passport::routes(); inside of boot method :
+
+<?php
+
+namespace App\Providers;
+
+use Laravel\Passport\Passport;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    
+    protected $policies = [
+         'App\Model' => 'App\Policies\ModelPolicy',
+    ];
+
+    
+    public function boot()
+    {
+        $this->registerPolicies();
+
+        Passport::routes();
+    }
+}
+
+
+config/auth.php
+Next go ot config/auth.php and Change the api driver to session to passport . 
+Put this code ‘driver’ => ‘passport’, in api :
+
+<?php
+
+return [    
+
+    'defaults' => [
+        'guard' => 'web',
+        'passwords' => 'users',
+    ],
+
+    
+    'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        'api' => [
+            'driver' => 'passport',
+            'provider' => 'users',
+            'hash' => false,
+        ],
+    ],
+
+    
+    'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\User::class,
+        ],
+       
+    ],
+    
+    'passwords' => [
+        'users' => [
+            'provider' => 'users',
+            'table' => 'password_resets',
+            'expire' => 60,
+        ],
+    ],
+
+];
+
+
+Create API Route
+In this step,we will create api routes, go to api.php inside route folder and create below routes here :
+
+<?php
+
+use Illuminate\Http\Request;
+
+
+Route::prefix('v1')->group(function(){
+ Route::post('login', 'Api\AuthController@login');
+ Route::post('register', 'Api\AuthController@register');
+ Route::group(['middleware' => 'auth:api'], function(){
+ Route::post('getUser', 'Api\AuthController@getUser');
+ Route::post('trasabilidadciv', 'Api\TrasabilidadcivController@index');
+ Route::post('create', 'Api\TrasabilidadcivController@store');
+ Route::get('trasabilidadciv/{id}', 'Api\TrasabilidadcivController@show');
+ Route::put('trasabilidadciv/{id}', 'Api\TrasabilidadcivController@update');
+ Route::delete('trasabilidadciv/{id}', 'Api\TrasabilidadcivController@destroy');
+ });
+});
+
+
+Create Controller
+Now will create a controller name AuthController. Use the below command and create controller :
+
+ php artisan make:controller Api\AuthController
+ 
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth; 
+use App\User; 
+use Validator;
+
+class AuthController extends Controller
+{
+ public $successStatus = 200;
+  
+ public function register(Request $request) {    
+ $validator = Validator::make($request->all(), [ 
+              'name' => 'required',
+              'email' => 'required|email',
+              'password' => 'required',  
+              'c_password' => 'required|same:password', 
+    ]);   
+ if ($validator->fails()) {          
+       return response()->json(['error'=>$validator->errors()], 401);                        }    
+ $input = $request->all();  
+ $input['password'] = bcrypt($input['password']);
+ $user = User::create($input); 
+ $success['token'] =  $user->createToken('AppName')->accessToken;
+ return response()->json(['success'=>$success], $this->successStatus); 
+}
+  
+   
+public function login(){ 
+
+if(Auth::attempt(['email' => request('email'), 'password' => request('password')])){ 
+   
+   $user = Auth::user(); 
+   $success['token'] =  $user->createToken('AppName')-> accessToken; 
+    return response()->json(['success' => $success], $this-> successStatus); 
+  } 
+  else{ 
+   
+   return response()->json(['error'=>'Unauthorised'], 401); 
+   } 
+}
+  
+public function getUser() {
+ $user = Auth::user();
+ return response()->json(['success' => $user], $this->successStatus); 
+ }
+}
+
+
+crear controlador BaseController
+php artisan make:controller Api\BaseController
+
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller as Controller;
+
+class BaseController extends Controller
+{
+    public function sendResponse($result, $message)
+    {
+    	$response = [
+            'success' => true,
+            'data'    => $result,
+            'message' => $message,
+        ];
+
+
+        return response()->json($response, 200);
+    }
+    
+    public function sendError($error, $errorMessages = [], $code = 404)
+    {
+    	$response = [
+            'success' => false,
+            'message' => $error,
+        ];
+
+
+        if(!empty($errorMessages)){
+            $response['data'] = $errorMessages;
+        }
+
+
+        return response()->json($response, $code);
+    }
+}
+
+ 
+ crear nuevo modelo
+ php artisan make:model Trasabilidadciv
+ php artisan make:migration create_trasabilidadcivs_table
+ php artisan make:controller Api\TrasabilidadcivController
+
+ <?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Trasabilidadciv;
+use Illuminate\Http\Request;
+use Validator;
+use App\Http\Controllers\API\BaseController as BaseController;
+
+class TrasabilidadcivController extends BaseController
+{
+    public function index()
+    {
+        $trasabilidad = Trasabilidadciv::all();			
+		return $this->sendResponse($trasabilidad->toArray(), 'Datos de la tabla trasabilidad.');
+					
+    }
+	
+  
+    public function store(Request $request)
+    {
+        $input = $request->all();
+		
+        $validator = Validator::make($input, [
+            'nombre' => 'required',
+            'descripcion' => 'required'
+        ]);
+
+
+        if($validator->fails()){
+            return $this->sendError('Error en la validacion de los datos.', $validator->errors());       
+        }
+
+        $trasabilidad = Trasabilidadciv::create($input);
+
+        return $this->sendResponse($trasabilidad->toArray(), 'registro creado.');
+    }
+
+    public function show($id)
+    {
+        $trasabilidad = Trasabilidadciv::find($id);
+
+        if (is_null($trasabilidad)) {
+            return $this->sendError('Registro no encontrado.');
+        }
+
+
+        return $this->sendResponse($trasabilidad->toArray(), 'Registro encontrado.');
+    }
+
+ 
+    public function update(Request $request, Trasabilidadciv $trasabilidad)
+    {
+        $input = $request->all();
+
+        $validator = Validator::make($input, [
+            'nombre' => 'required',
+            'descripcion' => 'required'
+        ]);
+
+
+        if($validator->fails()){
+            return $this->sendError('Error en la validacion de los datos.', $validator->errors());       
+        }
+
+        $trasabilidad->nombre = $input['nombre'];
+        $trasabilidad->descripcion = $input['descripcion'];
+        $trasabilidad->save();
+
+        return $this->sendResponse($trasabilidad->toArray(), 'Registro actualizado con exito.');
+    }
+
+    public function destroy($id)
+    {
+        $trasabilidad = Trasabilidadciv::find($id);
+		
+		$trasabilidad->delete();
+
+        return $this->sendResponse($trasabilidad->toArray(), 'Registro eliminado con exito.');
+    }
+}
+
+
+despues de usar
+php artisan migrate:refresh
+correr
+php artisan passport:install
+
+
+Rutas
+
+registro usuario POST:
+http://localhost/apilaravel/public/api/v1/register
+{
+    "name":"prueba",
+    "email":"prueba@gmail.com",
+	  "password":"prueba",
+	  "c_password":"prueba"
+
+}
+
+Login POST:
+http://localhost/apilaravel/public/api/v1/login
+{
+    "email":"prueba@gmail.com",
+    "password":"prueba"
+
+}
+
+ver todos los registros POST:
+http://localhost/apilaravel/public/api/v1/trasabilidadciv
+
+Insertar Registro POST: 
+http://localhost/apilaravel/public/api/v1/create
+{
+    "nombre":"prueba2",
+    "descripcion":"prueba2"
+
+}
+Buscar Registro GET:
+http://localhost/apilaravel/public/api/v1/trasabilidadciv/1
+
+Actualizar Registro PUT:
+http://localhost/apilaravel/public/api/v1/trasabilidadciv/1
+{
+    "nombre":"dato actualizado",
+    "descripcion":"dato actualizado"
+
+}
+Eliminar Registro DELETE:
+http://localhost/apilaravel/public/api/v1/trasabilidadciv/1
+
+
+
+
+
+ 
+ 
